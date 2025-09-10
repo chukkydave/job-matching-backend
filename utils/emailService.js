@@ -1,37 +1,26 @@
 const nodemailer = require('nodemailer');
 
-// For development, we'll use a simple console logger
-// In production, you'd configure with real SMTP settings
+// Configure Brevo SMTP
 const transporter = nodemailer.createTransporter({
-    host: 'smtp.gmail.com',
+    host: 'smtp-relay.brevo.com',
     port: 587,
     secure: false,
     auth: {
-        user: process.env.EMAIL_USER || 'your-email@gmail.com',
-        pass: process.env.EMAIL_PASS || 'your-app-password'
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
     }
 });
 
-// For development, we'll just log emails to console
 const sendEmail = async (to, subject, html) => {
     try {
-        if (process.env.NODE_ENV === 'development') {
-            console.log('\n=== EMAIL SENT ===');
-            console.log(`To: ${to}`);
-            console.log(`Subject: ${subject}`);
-            console.log(`Content: ${html}`);
-            console.log('==================\n');
-            return { success: true };
-        }
-
         const info = await transporter.sendMail({
-            from: process.env.EMAIL_FROM || 'noreply@instollarjobs.com',
+            from: process.env.EMAIL_FROM,
             to,
             subject,
             html
         });
 
-        console.log('Email sent:', info.messageId);
+        console.log('Email sent successfully:', info.messageId);
         return { success: true, messageId: info.messageId };
     } catch (error) {
         console.error('Email sending failed:', error);
@@ -65,7 +54,7 @@ const sendVerificationEmail = async (email, verificationCode) => {
 };
 
 const sendPasswordResetEmail = async (email, resetToken) => {
-    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
     const subject = 'Reset your Instollar Jobs password';
     const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
