@@ -230,7 +230,7 @@ router.post('/reset-password', async (req, res) => {
 router.get('/me', auth, async (req, res) => {
     res.json({
         user: {
-            id: req.user._id,
+            _id: req.user._id,
             name: req.user.name,
             email: req.user.email,
             role: req.user.role,
@@ -239,6 +239,99 @@ router.get('/me', auth, async (req, res) => {
             isEmailVerified: req.user.isEmailVerified
         }
     });
+});
+
+// Update profile
+router.put('/me', auth, async (req, res) => {
+    try {
+        const { name, email, location, skills } = req.body;
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Check if email is being changed and if it's already taken
+        if (email && email !== user.email) {
+            const existingUser = await User.findOne({ email });
+            if (existingUser) {
+                return res.status(400).json({ message: 'Email already exists' });
+            }
+            user.email = email;
+            user.isEmailVerified = false; // Reset verification if email changed
+        }
+
+        if (name) user.name = name;
+        if (location) user.location = location;
+        if (skills) user.skills = skills;
+
+        await user.save();
+
+        res.json({
+            message: 'Profile updated successfully',
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                skills: user.skills,
+                location: user.location,
+                isEmailVerified: user.isEmailVerified
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// Change password with OTP
+router.post('/change-password-otp', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Generate OTP for password change
+        const otp = user.generateVerificationCode();
+        await user.save();
+
+        // Send OTP via email
+        await sendVerificationEmail(user.email, otp);
+
+        res.json({ message: 'OTP sent to your email for password change' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// Verify OTP and change password
+router.post('/verify-otp-change-password', auth, async (req, res) => {
+    try {
+        const { otp, newPassword } = req.body;
+
+        if (!otp || !newPassword) {
+            return res.status(400).json({ message: 'OTP and new password are required' });
+        }
+
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (user.emailVerificationCode !== otp) {
+            return res.status(400).json({ message: 'Invalid OTP' });
+        }
+
+        // Update password
+        user.password = newPassword;
+        user.emailVerificationCode = undefined; // Clear OTP after use
+        await user.save();
+
+        res.json({ message: 'Password changed successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
 });
 
 module.exports = router;
