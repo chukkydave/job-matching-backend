@@ -17,9 +17,14 @@ const sendEmail = async (to, subject, html) => {
         console.log('Using SMTP config:', {
             host: process.env.SMTP_HOST,
             port: process.env.SMTP_PORT,
+            secure: process.env.SMTP_SECURE,
             user: process.env.EMAIL_USER,
             from: process.env.EMAIL_FROM
         });
+
+        // Verify transporter configuration
+        await transporter.verify();
+        console.log('SMTP connection verified successfully');
 
         const info = await transporter.sendMail({
             from: process.env.EMAIL_FROM,
