@@ -24,7 +24,7 @@ router.get('/stats', auth, async (req, res) => {
 
         // Get active matches only
         const activeMatches = allMatches.filter(match => match.status === 'Active');
-        
+
         // Get completed matches
         const completedMatches = allMatches.filter(match => match.status === 'Inactive');
 
@@ -34,7 +34,7 @@ router.get('/stats', auth, async (req, res) => {
         // Get jobs that match user's skills
         const user = await User.findById(userId);
         const userSkills = user.skills || [];
-        
+
         let matchingJobs = 0;
         if (userSkills.length > 0) {
             matchingJobs = await Job.countDocuments({
@@ -50,12 +50,12 @@ router.get('/stats', auth, async (req, res) => {
         // Get recent matches (last 7 days)
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        const recentMatches = allMatches.filter(match => 
+        const recentMatches = allMatches.filter(match =>
             new Date(match.createdAt) >= sevenDaysAgo
         );
 
         // Calculate match success rate (if they have any matches)
-        const matchSuccessRate = allMatches.length > 0 
+        const matchSuccessRate = allMatches.length > 0
             ? Math.round((completedMatches.length / allMatches.length) * 100)
             : 0;
 
