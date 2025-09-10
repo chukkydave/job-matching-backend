@@ -1,43 +1,48 @@
-const nodemailer = require('nodemailer');
+const SibApiV3Sdk = require('sib-api-v3-sdk');
 
-// Configure Brevo SMTP
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
+// Configure Brevo API
+if (!process.env.BREVO_API_KEY) {
+    throw new Error('BREVO_API_KEY is not defined');
+}
 
-const sendEmail = async (to, subject, html) => {
-    try {
-        console.log('Attempting to send email to:', to);
-        console.log('Using SMTP config:', {
-            host: process.env.SMTP_HOST,
-            port: process.env.SMTP_PORT,
-            secure: process.env.SMTP_SECURE,
-            user: process.env.EMAIL_USER,
-            from: process.env.EMAIL_FROM
-        });
+const defaultClient = SibApiV3Sdk.ApiClient.instance;
+const apiKey = defaultClient.authentications['api-key'];
+apiKey.apiKey = process.env.BREVO_API_KEY;
+const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
-        // Verify transporter configuration
-        await transporter.verify();
-        console.log('SMTP connection verified successfully');
+const sendEmail = async (to, subject, html, retries = 3) => {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            console.log(`Attempting to send email to: ${to} (attempt ${attempt}/${retries})`);
+            console.log('Using Brevo API with key:', process.env.BREVO_API_KEY ? 'Set' : 'Not set');
 
-        const info = await transporter.sendMail({
-            from: process.env.EMAIL_FROM,
-            to,
-            subject,
-            html
-        });
+            const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
-        console.log('Email sent successfully:', info.messageId);
-        return { success: true, messageId: info.messageId };
-    } catch (error) {
-        console.error('Email sending failed:', error);
-        return { success: false, error: error.message };
+            sendSmtpEmail.subject = subject;
+            sendSmtpEmail.htmlContent = html;
+            sendSmtpEmail.sender = {
+                name: process.env.BREVO_FROM_NAME,
+                email: process.env.EMAIL_FROM
+            };
+            sendSmtpEmail.to = [{ email: to }];
+
+            const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
+
+            console.log('Email sent successfully via Brevo API:', result.messageId);
+            return { success: true, messageId: result.messageId };
+        } catch (error) {
+            console.error(`Email sending failed (attempt ${attempt}/${retries}):`, error.message);
+
+            if (attempt === retries) {
+                console.error('All retry attempts failed');
+                return { success: false, error: error.message };
+            }
+
+            // Wait before retrying (exponential backoff)
+            const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+            console.log(`Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
     }
 };
 
