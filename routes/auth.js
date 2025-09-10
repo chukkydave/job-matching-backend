@@ -244,21 +244,11 @@ router.get('/me', auth, async (req, res) => {
 // Update profile
 router.put('/me', auth, async (req, res) => {
     try {
-        const { name, email, location, skills } = req.body;
+        const { name, location, skills } = req.body;
         const user = await User.findById(req.user._id);
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
-        }
-
-        // Check if email is being changed and if it's already taken
-        if (email && email !== user.email) {
-            const existingUser = await User.findOne({ email });
-            if (existingUser) {
-                return res.status(400).json({ message: 'Email already exists' });
-            }
-            user.email = email;
-            user.isEmailVerified = false; // Reset verification if email changed
         }
 
         if (name) user.name = name;
