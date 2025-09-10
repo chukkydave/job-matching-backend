@@ -32,6 +32,20 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true
+    },
+    isEmailVerified: {
+        type: Boolean,
+        default: false
+    },
+    emailVerificationCode: {
+        type: String,
+        expires: 600 // 10 minutes
+    },
+    passwordResetToken: {
+        type: String
+    },
+    passwordResetExpires: {
+        type: Date
     }
 }, {
     timestamps: true
@@ -51,6 +65,20 @@ userSchema.pre('save', async function (next) {
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
     return bcrypt.compare(candidatePassword, this.password);
+};
+
+userSchema.methods.generateVerificationCode = function () {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    this.emailVerificationCode = code;
+    return code;
+};
+
+userSchema.methods.generatePasswordResetToken = function () {
+    const crypto = require('crypto');
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    this.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    this.passwordResetExpires = Date.now() + 60 * 60 * 1000; // 1 hour
+    return resetToken;
 };
 
 module.exports = mongoose.model('User', userSchema);
